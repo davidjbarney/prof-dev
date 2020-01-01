@@ -1,0 +1,150 @@
+---
+title: "Overfitting and Model Tuning"
+author: "David J. Barney"
+date: "1/1/2020"
+output: html_document
+---
+
+# Overview
+## Glossary
+* **Overfitting**: Problem in which a model cannot make accurate predictions on unseen data.
+  + Model parameters are biased toward particular patterns of noise learned from the *training data*, leading to poor performance on the *testing data*
+* **Model Tuning**: Process of adjusting model hyperparameters in order to optimize predictive accuracy.
+  + In many cases, there is no closed-form solution to identify an optimal set of parameters.
+* **Apparent Performance**: Ability of a model to re-predict its training data
+  + Tends to be overly optimistic (e.g. inflated predictive accuracy)
+* **Hold-Out Performance**: Ability of a model to predict unseen (testing) data
+
+## Process
+* *General Approach*
+  + Define a set of candidate values for hyperparameters
+  + For each candidate set:
+    + Resample data
+    + Fit model
+    + Predict hold-outs
+  + Aggregate the resampling into a performance profile
+  + Determine the final tuning parameters
+  + Using the final tuning parameters, refit the model with the entire training set
+  
+* *Algorithmic Approaches*
+  + Iteratively compute hyperparameter values until an optimal specifications are found.
+  + Computationally expensive, but able to evaluate a more comprehensive set of model specifications than the general approach.
+  
+# Resampling
+## Glossary
+* **Resampling**: Process that produces several modified versions of the training set & fits multiple models for performance evaluation.
+  + Intention is to avoid optimsitic biases of performance evaluation when only using seen data.
+  
+* **Data Splitting**: Procedure that divides a dataset into training and test sets
+  + *Simple random sampling* is the most computationally and statistically straightforward approach for homogeneous splits, but can suffer if the data are imbalanced.
+  + *Stratified random sampling* conducts random sampling with subgroups / classes to address class imbalance for homogeneous splits
+  + *Maxmimum dissiilarity sampling* iteratively produces splits based on distances between observations in order to address predictor imbalance
+    
+## Techniques
+### _k_-Fold Cross Validation
+* *General Approach*
+  1. Randomly partition data into *k* sets, with approximately equal *n* in each set
+  2. Fit model using all samples *except* the first subset (referred to as the first *fold*)
+  3. Evaluate performance on the first fold (e.g. error rate, R^2^, etc.)
+  4. Return first fold into training data, and remove second fold for testing
+  5. Repeat steps 2 through 5 for *k* sets
+  6. Aggregate performance metrics from step 3 for final model evaluation
+* *Additional Details*
+  + *k* is generally between 5 and 10 as a rule of thumb.
+    + As *k* increases, the difference in size between training set and folds reduces, which in turn reduces bias
+  + *k*-fold CV generally results in predictions with a higher variance than other methods
+    + Uncertainty decreases as *n* increases
+    + Repeating the *k*-fold procedure multiple times increases precision
+
+### Leave-One-Out Cross-Validation
+* *LOOCV* is a variant where *k* is the number of observations (e.g. each prediction is an individual hold-out)
+  + Computationally expensive; setting $*k* = 10$ often produces similar results
+  
+### Generalized Cross-Validation
+* *GCV* statistic approximates a leave-one-out error rate for linear regression models
+  + Does not require the iteration of the *k*-fold approach
+* Leverages degrees of freedom (*df*) to account for model complexity's impact on performance
+  
+### Repeated Training/Test Splits
+* Also referred to as *leave-group-out CV* (*LGOCV*) and *Monte Carlo CV*
+* Repeatedly creates splits of the data, producing multiple modeling and prediction sets
+  + Number of repetitions and proportion of split may be specified
+    + As repetitions increase, uncertainty decreases
+    + As proportion of test split increases, more repetitions are required
+* Parallel with *k*-fold in that both techniques produce multiple train/test sets for tuning
+  + But in *LGOCV*, each observation can be represented in multiple held-out subsets
+
+### Bootstrapping
+* Creates train/test sets through *random sampling with replacement*
+  1. Generate a bootstrapped sample for model training
+    + *n* of bootstrapped sample = *n* of original dataset
+  2. Predict unsampled ("out-of-bag") observations with model fit to bootstrapped sample
+  3. Repeat steps 1 and 2
+* Error tends to be lower than that of *k*-fold
+* Because sampling with replacement may generate dissimilar samples, bias tends to be similar to that of *k*-fold with *k* = 2
+  + *632 method* reduces this bias by incorporating apparent error with the bootstrap estimate
+    + Can be unstable with a small *n* & overstate model performance
+
+## Parameter Tuning
+* Considerations for selection of final parameters
+  + *Optimize performance on test set*
+    + Performance metric is generally out-of-sample accuracy, but others (e.g. false positive rate) may be important depending on context
+  + *Model simplicity*
+    + There are often diminishing returns to model complexity, so we may want to choose simpler model specifications with one of the following criteria:
+      + *One-standard error approach*: Find parameters that optimize performance metric with corresponding SE, and then find the simplest model with performance within that margin
+      + *Acceptable trade-off*: Identify an acceptable extent of performance loss, and then find the simplest model within that margin.
+      
+## Split Recommendations
+* Drawbacks of reliance on a single, independent test set:
+  + Sample size limitations:
+    + Every observation may be required for effective model fitting with training set
+    + Test set may not have sufficient power or precision to make reasonable evaluations of uncertainty
+  + Proportionally large test sets increase bias of performance estimates
+
+* Guidance for resampling use cases:
+  + *10-fold cross validation* for small sample sizes
+    + Generally acceptable bias and variance
+    + Less computationally expensive
+  + *Bootstrap procedures* for model selection
+    + Lower variance
+  + With larger sample sizes, various resampling techniques may be equally servicable
+
+## Model Selection
+* A straightforward *most-complex to least-complex* scheme allows for well-informed tradeoffs in model selection
+  + Establish a *performance ceiling* with a complex model, and then compare with simpler and more interpretable models
+* If datasets are resampled identically, standard statistical techniques (e.g. paired *t*-test) can be used to compare model accuracies.
+
+# Computing
+## Setup
+```{r Load packages}
+library("AppliedPredictiveModeling")
+library("caret")
+#library("Design")
+library("e1071")
+library("ipred")
+library("MASS")
+```
+
+## Splitting
+```{r Training}
+# Load toy data
+data(twoClassData)
+
+# Create random splits stratified on class
+## Seed for reproducability
+set.seed(1)
+
+## Split index
+trainingRows <- caret::createDataPartition(classes, p = .80, list = FALSE)
+## Subset on index split
+### Train
+trainPredictors <- predictors[trainingRows,]
+trainClasses <- classes[trainingRows,]
+### Test
+testPredictors <- predictors[-trainingRows,]
+testClasses <- classes[-trainingRows,]
+
+```
+
+
+

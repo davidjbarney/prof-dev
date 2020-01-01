@@ -1,0 +1,185 @@
+---
+title: "Data Preprocessing"
+author: "David J. Barney"
+date: "1/1/2020"
+output: html_document
+---
+
+# Transformation Glossary
+## Single Predictors
+* **Centering**: Transform mean to zero
+  + Vector of predictor values - average predictor value
+* **Scaling**: Transform common standard deviation of one
+  + Vector of predictor values / standard deviation of predictor value
+* **Skewness**: Asymmetry of distribution on one side of the mean
+  + Common to transform with log, square root, or inverse
+  + Rule of thumb: ratio of highest:lowest value > 20 indicates significant skewness
+  + Box-Cox transformation: monotonic (preserves or reverses order of observations) power transformation. Includes $\lambda$ parameter that specifies the power function: square ($\lambda$ = 2), square root ($\lambda$ = 0.5), inverse ($\lambda$ = -1), and values in between. $\lambda$ is generally estimated using MLE.
+
+## Outliers
+* **Spatial sign**: Project predictor values onto multidimensional sphere to minimize effect of outliers
+  + Each sample divided by its squared norm
+  + Must center and scale all predictors prior to spatial sign transform
+  + Predictors transformed as a group, so procedure must be repeated if features are changed
+
+## Data Reduction
+* **Principal Component Analysis**: Find linear combinations of predictors that capture greatest possible variance
+  + Creates components that are uncorrelated
+  + Best practice is to first transform skewed predictors, then center and scale all predictors prior to PCA in order to avoid outsized effect of predictors with greater variation
+  
+## Removing Predictors
+* **Near-zero variance predictors**: Predictors with a single value for the large majority of samples
+  + Heuristics for detecting NZVPs:
+    + Fraction of unique values over the sample size is low (< 10%)
+    + Frequency of modal value:frequency of second most common value is large (~ 20%)
+    
+* **Multicollinearity**: Significant correlations between multiple predictors
+  + Steps to remove minimum number of predictors to ensure all pairwise correlations are below a threshold:
+    + Calculate correlation matrix of predictors
+    + Identify the two predictors with the largest absolute pairwise correlation (*A* and *B*)
+    + Calculate the average correlation between *A* and all other predictors, repeat for *B* and all other predictors
+    + If *A* has a larger average correlation, remove it; otherwise, remove *B*
+    + Repeat until no absolute correlations are above the threshold
+  + Threshold for above procedure depends on your model's sensitivity to between-predictor correlations (e.g. we might establish a threshold of 0.75 for a sensitive model)
+
+# Computing
+## Setup
+```{r Load packages}
+library("AppliedPredictiveModeling")
+library("caret")
+library("corrplot")
+library("e1071")
+library("lattice")
+```
+
+```{r Prepare initial data}
+data("segmentationOriginal") # Load data
+segData <- subset(segmentationOriginal, Case == "Train") # Subset to training cases
+
+# Separate cellID, class, and case into vectors
+cellID <- segData$Cell
+class <- segData$Class
+case <- segData$Case
+
+# Remove the cellID, class, and case columns
+segData <- segData[, -(1:3)]
+
+# Remove "status" columns
+statusColNum <- grep("Status", colnames(segData))
+segData <- segData[, -statusColNum]
+```
+
+## Transformations
+### Examples of individual predictor transforms
+#### Examine Skewness
+```{r Calculate skewness for predicotrs}
+# Apply skewness function over all predictors
+skewValues <- apply(segData, 2, skewness)
+hist(skewValues)
+```
+
+#### Example Box-Cox
+```{r Use Box-Cox Transformation }
+Ch1AreaTrans <- BoxCoxTrans(segData$AreaCh1)
+Ch1AreaTrans
+```
+
+```{r Examine original data}
+head(segData$AreaCh1)
+```
+
+```{r Examine data after Box-Cox transform}
+predict(Ch1AreaTrans, head(segData$AreaCh1))
+```
+
+```{r Example of a spatial sign transform}
+spatialSign(segData[1:3, 1:3])
+```
+
+### Principal Components Analysis
+```{r Apply centering and scaling to all predictors}
+# Create PCA object with centering and scaling
+pcaObject <- prcomp(segData, center = TRUE, scale. = TRUE)
+
+# Calculate the cumulative percentage of variance which each component accounts for
+percentVariance <- pcaObject$sdev^2/sum(pcaObject$sdev^2)*100
+percentVariance[1:3]
+```
+
+```{r Examine predictor-component loadings}
+head(pcaObject$rotation[, 1:3])
+```
+
+### `caret::preProcess` Functionality
+```{r Examine outputs from `preProcess`}
+# Summarize change from Box-Cox transform, centering, scaling, and PCA
+trans <- preProcess(segData, method = c("BoxCox", "center", "scale", "pca"))
+trans
+```
+
+```{r Create transformed dataframe from `preProcess` outputs using `predict`}
+transformed <- predict(trans, segData)
+head(transformed[, 1:5])
+```
+
+### Filtering
+#### Near-Zero Variance Predictors
+```{r Filter out near-zero variance predictors with `caret::nearZeroVar`}
+nearZeroVar(segData) # No predictors have near-zero variance
+```
+
+#### Correlated Predictors
+```{r Examine between-predictor correlations}
+correlations <- cor(segData)
+correlations[1:4, 1:4]
+```
+
+```{r Visualize between-predictor correlations}
+corrplot(correlations, order = "hclust")
+```
+
+```{r Filter correlated predictors}
+highCorr <- findCorrelation(correlations, cutoff = 0.75)
+length(highCorr)
+head(highCorr)
+filteredSegData <- segData[, -highCorr]
+```
+
+### Dummy Coding
+```{r Load `caret::cars` dataset}
+data(cars)
+type <- c("convertible", "coupe", "hatchback", "sedan", "wagon")
+cars$Type <- factor(apply(cars[, 14:18], 1, function(x) type[which(x == 1)]))
+carSubset <- cars[sample(1:nrow(cars), 20), c(1, 2, 19)]
+carSubset
+```
+
+
+```{r Simple usage of `caret::dummyVars`}
+simpleMod <- dummyVars(~Mileage + Type,
+                       data = carSubset,
+                       levelsOnly = TRUE)
+simpleMod
+```
+
+```{r Factor expansion using `predict` method}
+predict(simpleMod, head(carSubset))
+```
+
+```{r Interaction usage of `caret::dummyVars`}
+withInteraction <- dummyVars(~Mileage + Type + Mileage:Type,
+                             data = carSubset,
+                             levelsOnly = TRUE)
+withInteraction
+```
+
+```{r Factor expansion with interaction using `predict` method}
+predict(withInteraction, head(carSubset))
+```
+
+
+
+
+
+
+
