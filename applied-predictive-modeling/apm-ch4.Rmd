@@ -126,7 +126,7 @@ library("MASS")
 ```
 
 ## Splitting
-```{r Training}
+```{r Simple splits}
 # Load toy data
 data(twoClassData)
 
@@ -139,12 +139,123 @@ trainingRows <- caret::createDataPartition(classes, p = .80, list = FALSE)
 ## Subset on index split
 ### Train
 trainPredictors <- predictors[trainingRows,]
-trainClasses <- classes[trainingRows,]
+trainClasses <- classes[trainingRows]
 ### Test
 testPredictors <- predictors[-trainingRows,]
-testClasses <- classes[-trainingRows,]
+testClasses <- classes[-trainingRows]
+
+# Create splits with base R
+## Simple random sample
+trainingRows_base <- sample(x = classes, 
+                            size = (0.8 * length(classes)), 
+                            replace = FALSE)
+```
+
+```{r Repeated splits}
+# Seed for reproducability
+set.seed(1)
+# Create multiple splits (LGOCV)
+repeatedSplits <- createDataPartition(trainClasses,
+                                      p = .80,
+                                      times = 3)
+
+# Create k-fold splits
+cvSplits <- createFolds(trainClasses,
+                        k = 10,
+                        returnTrain = TRUE)
+
 
 ```
+
+## Tuning (SVM)
+```{r Preparation}
+# Load data
+data("GermanCredit")
+
+# Preprocessing
+## Remove near-zero variance features
+GermanCredit <- GermanCredit[, -nearZeroVar(GermanCredit)]
+
+## Remove redundant features
+GermanCredit$CheckingAccountStatus.lt.0 <- NULL
+GermanCredit$SavingsAccountBonds.lt.100 <- NULL
+GermanCredit$EmploymentDuration.lt.1 <- NULL
+GermanCredit$EmploymentDuration.Unemployed <- NULL
+GermanCredit$Personal.Male.Married.Widowed <- NULL
+GermanCredit$Property.Unknown <- NULL
+GermanCredit$Housing.ForFree <- NULL
+
+# Create splits
+set.seed(100)
+split_index <- createDataPartition(GermanCredit$Class, p = .8, list = FALSE)
+GermanCreditTrain <- GermanCredit[ split_index, ]
+GermanCreditTest  <- GermanCredit[-split_index, ]
+```
+
+```{r Fit SVM model across specifications with resampling}
+# Fit SVM using caret::train()
+set.seed(1056)
+svmFit <- caret:: train(Class ~ ., 
+                        data = GermanCreditTrain, 
+                        method = "svmRadial", # Specify kernel function
+                        preproc = c("center", "scale"), # Set mean to 0, sd to 1 
+                        tuneLength = 10, # Evaluate cost function across various exponentiated values
+                        trControl = caret::trainControl(method = "repeatedcv", # Specify k-fold cv method
+                                                        repeats = 5,
+                                                        classProbs = TRUE)) 
+svmFit
+```
+
+```{r Plot performance across model specifications}
+plot(svmFit, scales = list(x = list(log = 2)))
+```
+
+## Prediction (SVM)
+```{r Predict outcomes on test set}
+# Compute class predictions for each point in the test set
+predictedClasses <- predict(svmFit, GermanCreditTest)
+# Confusion matrix
+table(predicted = predictedClasses, 
+      actual = GermanCreditTest$Class)
+```
+
+```{r Predict probabilities on test set}
+# Compute predicted probabilities of class membership for each point in the test set 
+predictedProbs <- predict(svmFit, GermanCreditTest, type = "prob")
+head(predictedProbs)
+```
+
+## Between-Model Comparisons
+```{r Fit logit model for comparison}
+set.seed(1056)
+logitFit <- caret:: train(Class ~ ., 
+                        data = GermanCreditTrain, 
+                        method = "glm", # Specify kernel function
+                        trControl = caret::trainControl(method = "repeatedcv", # Specify k-fold cv method
+                                                        repeats = 5))
+logitFit
+```
+
+```{r Compare `svmFit` and `logitFit` using `caret::resamples()`}
+resamp <- resamples(list(SVM = svmFit,
+                         Logistic = logitFit))
+summary(resamp)
+```
+
+```{r Direct comparisons with `caret::diff()`}
+modelDifferences <- diff(resamp)
+summary(modelDifferences)
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
