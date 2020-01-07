@@ -1,0 +1,24 @@
+---
+title: "Measuring Performance in Regression Models"
+author: "David J. Barney"
+date: "1/7/2020"
+output: html_document
+---
+
+# Performance Measures
+* **Mean Square Error** *(SME)*: Summation of squared residuals, divided by *n* samples
+* **Root Mean Square Error** *(RSME)*: Square root of MSE
+  + RMSE is in the same units as original data
+  + Interpreted as how far (on avereage) the residuals are from zero / the average distance between the observed values and the model predictions
+* **R^2^**: Proportion of variance explained by the model
+  + Generally calculated as the square of the correlation coefficient between observed and predicted values
+  + Can be misleading in cases where:
+    + Predictions are asymmetric over the distribution of outcomes (e.g. worse performance on low values)
+    + Variance in the data is particularly low
+* **Rank correlation**: Correlation of *ranks* of observed outcomes with *ranks* of predictions
+
+# Bias-Variance Tradeoff
+* Expected MSE is decomposed as:
+  + E[MSE] = $\sigma$^2^ + (Model Bias)^2^ + Model Variance
+* **Model Bias**:  Error caused by a model not learning informative parameters (e.g. *underfitting*)
+* **Model Variance**: Error caused by a model learning parameters informed by noise in the training data (e.g. *overfitting*)
