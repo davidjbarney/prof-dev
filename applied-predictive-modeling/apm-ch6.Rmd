@@ -1,0 +1,187 @@
+---
+title: "Linear Regression and Its Cousins"
+author: "David J. Barney"
+date: "1/7/2020"
+output: html_document
+---
+
+# Ordinary Least Squares Regression
+* Cost function: minimize sum-of-squared errors (SSE) between observed and predicted response
+* Some benefits:
+  + OLS produces the most *unbiased* parameter estimates (under assumptions re: the distribution of residuals)
+  + Coefficients are easily interpretable
+  + Has a closed-form solution
+* Some drawbacks:
+  + Ill-equipped to deal with collinearity, because the optimal plane is defined by a term proportional to the covariance matrix of predictors
+    + Predictions can still be made under conditions of collinearity, but coefficients lose interpretability
+  + Fails when predictors outnumber observations
+    + Predictors can be selected by calculating the *variance inflation factor* (VIF)
+  + Vanilla OLS can only model a linear solution (flat hyperplane)
+    + To model curvelinear, nonlinear, etc. relationships, one can attempt to fit a model with quadratic/cubic/interacted predictors
+  + Because OLS minimizes SSE, prone to fitting parameters that "chase" outliers in the data
+
+# Partial Least Squares Regression
+* Modified linear regression that algorithmically incorporates dimensionality reduction of predictors into model fitting process
+  + Iteratively finds linear combinations of predictors *as latent components* that maximally summarize covariance with the outcome variable
+  + PLS optimizes variation of predictors *and* correlation of predictors with response
+* When is PLS beneficial?
+  + Effective for data with collinear predictors that can be summarized in lower dimensionality
+  + Computationally feasible with small- to moderate-sized datasets (e.g. *n* = 2500, < 30 predictors)
+* Additional considerations
+  + Only tuning parameter is *number of components to retain*
+  + Predictors must be centered and scaled prior to PLS estimation
+  + *Variable importance in the projection* as a metric to summarize variable importance
+
+# Penalized Regression
+* General notes:
+  + Set of approaches to linear regression that *increases bias* in order to *greatly decrease variance and MSE*
+  + OLS regression can produce inflated parameter estimates due to *overfitting* or *collinearity*
+    + Penalized models add a $\lambda$ term which *regularizes* (e.g. controls or limits) parameter estimates by adding a penalty to SSE if the estimates are too large
+
+* **Ridge Regression**
+  + *L2* penalty uses the square of coefficients ($\beta$^2^) to shrink parameter estimates in relation to $\lambda$
+  + Parameter estimates are only allowed to become alrge if there is a proportional reduction in SSE
+  + Effectively shrinks parameter estimates toward 0 as $\lambda$ becomes large
+    + *L2* penalty will not reduce any parameter to 0, but values may become negligibly small
+    + Correlated predictors will be shrunk to receive similar coefficients
+  + $\lambda$ can be optimized for lowest RMSE through cross-validation
+  
+* **LASSO Regression** (least absolute shrinkage and selection operator)
+  + *L1* penalty uses the absolute value of coefficients (|$\beta$|) to shrink parameter estimates in relation to $\lambda$
+  + Will shrink estimates for uninformative parameters to 0, effectively conducting *feature selection* in the model fitting process
+    + Largely indifferent to correlated predictors, meaning that the procedure will select one and shrink the rest to 0
+
+* **Elastic Net Regression**
+  + Incorporates both *L1* and *L2* penalties simultaneously, with two $\lambda$ terms
+    + Both $\lambda$~1~ and $\lambda$~2~ must be tuned to optimize the elastic net model
+    
+# Computing
+## Setup
+```{r Setup}
+# Load packages
+library("AppliedPredictiveModeling")
+library("MASS")
+library("caret")
+library("pls")
+library("elasticnet")
+
+# Load data
+data(solubility)
+
+# Prep the data
+trainingData <- solTrainXtrans
+trainingData$Solubility <- solTrainY
+```
+
+## OLS
+```{r}
+lmFitAll <- lm(Solubility ~ ., data = trainingData)
+summary(lmFitAll)
+```
+
+```{r Test OLS model}
+lmPred1 <- predict(lmFitAll, solTestXtrans)
+lmValues1 <- data.frame(obs = solTestY, pred = lmPred1)
+caret::defaultSummary(lmValues1)
+```
+
+```{r Robust linear model}
+rlmFitAll <- MASS::rlm(Solubility ~ ., data = trainingData)
+summary(rlmFitAll)
+```
+
+```{r Evaluate performance with 10-fold CV}
+ctrl <- caret::trainControl(method = "cv", number = 10)
+set.seed(100)
+lmFitCV1 <- caret::train(x = solTrainXtrans, y = solTrainY,
+                         method = "lm", trControl = ctrl)
+lmFitCV1
+```
+
+```{r Plot lm predicted vs. observed}
+xyplot(solTrainY ~ predict(lmFitCV1),
+       type = c("p", "g"),
+       xlab = "Predicted", ylab = "Observed")
+```
+
+```{r Plot lm predicted vs. residuals}
+xyplot(resid(lmFitCV1) ~ predict(lmFitCV1),
+       type = c("p", "g"),
+       xlab = "Predicted", ylab = "Residuals")
+```
+
+## PLS
+```{r Fit a PLS model}
+plsFit <- pls::plsr(Solubility ~ ., data = trainingData)
+summary(plsFit)
+```
+
+```{r Predict on test set with PLS model}
+predict(plsFit, solTestXtrans[1:5,], ncomp = 1:2)
+```
+
+```{r Fit PLS using caret::train()}
+set.seed(100)
+plsTune <- caret::train(solTrainXtrans, solTrainY,
+                        method = "pls",
+                        tuneLength = 20,
+                        trControl = ctrl,
+                        preProc = c("center", "scale"))
+plsTune
+```
+
+## Penalized 
+```{r Fit ridge model using elasticnet::enet()}
+ridgeModel <- elasticnet::enet(x = as.matrix(solTrainXtrans),
+                               y = solTrainY,
+                               lambda = 0.001)
+```
+
+```{r Predict test set with ridge model}
+ridgePred <- predict(ridgeModel, newx = as.matrix(solTestXtrans),
+                     s = 1, mode = "fraction")
+head(ridgePred$fit)
+```
+
+```{r Tune over the ridge penalty with caret::train()}
+ridgeGrid <- data.frame(.lambda = seq(0, .1, length = 15))
+set.seed(100)
+ridgeRegFit <- caret::train(solTrainXtrans, solTrainY,
+                            method = "ridge",
+                            tuneGrid = ridgeGrid,
+                            trControl = ctrl,
+                            preProc = c("center", "scale"))
+ridgeRegFit
+```
+
+
+```{r Fit LASSO model using elasticnet::enet()}
+enetModel <- elasticnet::enet(x = as.matrix(solTrainXtrans),
+                              y = solTrainY,
+                              lambda = 0.01,
+                              normalize = TRUE)
+```
+
+```{r Predict test set with LASSO model}
+enetPred <- predict(enetModel, newx = as.matrix(solTestXtrans),
+                    s = 0.1, mode = "fraction", type = "coefficients")
+tail(enetPred$coefficients)
+```
+
+```{r Fit eleastic net model using caret::train()}
+enetGrid <- expand.grid(.lambda = c(0, 0.01, .1),
+                        .fraction = seq(.05, 1, length = 20))
+set.seed(100)
+enetTune <- caret::train(solTrainXtrans, solTrainY,
+                         method = "enet",
+                         tuneGrid = enetGrid,
+                         trControl = ctrl,
+                         preProc = c("center", "scale"))
+enetTune
+```
+
+```{r Plot }
+plot(enetTune)
+```
+
+
