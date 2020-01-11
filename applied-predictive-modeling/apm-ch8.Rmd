@@ -1,0 +1,117 @@
+---
+title: "Regression Trees and Ruled-Based Models"
+author: "David J. Barney"
+date: "1/11/2020"
+output: html_document
+---
+
+# Overview
+* Fundamentally cconsists of multiple nested `if-then` statements that partition input features, then make predictions within those partitions
+  + *Splits* are the `if-then` criteria that split the input data
+  + *Leaves* (or terminal nodes) are the end-points where predictions are made after all partitioning is complete
+  + *Rules* are sets of `if-then` conditions that have been collapsed into independent conditions
+    + Can be simplified or pruned in such a way that samples are covered by multiple rules
+  + Each sample has one unique route to a leaf
+* Some advantages:
+  + Conditions are highly interpretable and easy to implement
+  + Rule logic is able to handle diverse predictors without pre-processing
+  + Form of relationship (e.g. linear, log-linear, etc.) between predictor and response does not need to be explicitly specified by the user
+  + Can handle missing data (e.g. tree-building can create *surrogate splits* that produces a similar outcome)
+  + Can implicitly conduct feature selection (e.g. if a predictor is never used in a split, the prediction equation is independent of that feature)
+* Some drawbacks:
+  + Model can be highly sensitive to changes in the data (high variance)
+  + Can have suboptimal predictive performance when the tree defines rectangular regions of homogenous outcome values
+  + Feature selection with correlated predictors makes arbitrary choices
+  + *Selection bias* over-emphasizes predictors with a large number of distinct values
+
+## Basic Regression Trees
+* Splits data into subgroups that are homogenous with respect to the response, determined by:
+  + The predictor to split on and the value of the split
+  + The depth or complexity of the tree
+  + The prediction equation in the terminal nodes
+* **CART Method** 
+  + Search every distinct value of every predictor to find the predictor and split value that partitions the data into two groups, such that the overal SSE is minimized
+  + Repeat process within subgroups (*tree growing*) until a satisfactory tree is built
+  + Prune to a smaller depth to avoid overfitting
+    + **Cost-Complexity Tuning** penalizes the error rate using the size of the tree with a complexity parameter *c~p~*
+      + Can be achieved with cross-validation or a one-standard-error approach
+  + Variable importance can be summarized as the reduction in SSE in the training set for each predictor
+    + Predictors that appear high/early in the tree, or multiple times in the rules, are more likely to be important
+
+## Regression Model Trees
+* Differences with basic regression trees:
+  + Splitting criterion is different (expected reduction in error rate is used to determine the split)
+    + Determines if the total variation in the splits, weighted by the sample size, is lower than in the presplit data
+  + Terminal nodes predict the outcome using a linear model (rather than a simple average)
+    + After the tree is built, each linear model is simplified as follows:
+      + Calculate absolute differences between observed and predicted values
+      + Multiple the above by a penalty term for number of parameters (more parameters = higher penalty)
+      + Drop each model term and compute adjusted error rate until error stops decreasing
+  + When a sample is predicted, it is often a combination of the predictions from different models along the same path through the tree
+* Incorporates *smoothing* to reduce overfitting and increase performance by combining predictions from child and parent models
+* Pruning process removes sub-trees that do not decrease adjusted error rate
+
+## Rule-Based Models
+* **Coverage**: the number of samples affected by a given rule
+* *Separate-and-conquer* procedures derives rules from multiple model trees, retaining only the rule from each with the largest coverage until each sample is covered by one rule
+
+## Bagged Trees
+* *Bagging* (bootstrap aggregation) is an ensemble approach that: 
+  1. Draws a bootstrap sample from training data
+  2. Trains an unpruned tree model until specified number of bootstraps is satisfied
+  3. Uses all unpruned models to predict new observations
+  4. Averages predictions to produce a bagged prediction
+* Some advantages:
+  + Reduces variance of prediction through aggregation process (particularly through varying tree structures)
+  + Can leverage *out-of-bag* samples for predictive performance measurements
+* Some drawbacks:
+  + Computationally expensive
+  + Less interpretable (though variable importance can still be interpreted)
+  + *Tree correlation* limits the ability of multiple trees to reduce variance
+
+## Random Forests
+* Incorporates randomization into the tree construction process to reduce tree correlation
+  + Randomized predictors is used at each split in the trees, as follows:
+    1. Generate bootstrap sample of data
+    2. Train a tree model on bootstrap sample
+    3. For each split in each model, randomly select *k* (< *P*) of the original predictors
+    4. Select the best predictor amoing the *k* predictors and partition data
+    5. Stop building each tree when performance stops improving, but do not prune
+  + *k* parameter (number of predictors to randomly select) can be tuned
+    + Rule of thumb is to select file values of *k* evenly spaced across 2 to *P*
+  + User must specify the number of trees for the forest
+    + Can specify a large number of trees without overfitting
+
+## Boosted Trees
+* Ensemble approach that combines (boosts) multiple weak models (e.g. marginal improvement over random prediction) into a combined model with a superior generalized error rate
+* Boosting can be interpreted as a forward stagewise additive model that minimizes exponential loss:
+  + Given a loss function (e.g. squared error) and a weak learner (e.g. regression trees), a boosting algorithm finds an additive model that minimizes the loss function
+  + Initialized with a best guess of the response (e.g. mean of the response, for regression)
+  + Gradient / residual is calculated
+  + A model is fit to the residuals to minimize loss
+  + Add current model to previous, and continue until user-defined stopping point
+* Two tuning parameters:
+  + Tree depth (*interaction depth*, as each split is a high-level interaction term with previous splits in an additive framework)
+  + Number of iterations
+* Steps to boosting with squared error as loss:
+  1. Select tree depth *D* and number of iterations *K*
+  2. Compute average response to use as initial predicted value for each sample
+  3. For each iteration, compute the residual for each sample
+  4. Fit a regression tree of depth *D* using residuals as the response variable
+  5. Predict each sample using the regression tree from step 4
+  6. Update the predicted value of each sample by adding the previous iteration's predicted value to the predicted value generated in step 5
+  7. Repeat steps 3-6 for *K* iterations
+* Differences from random forest and bagged trees:
+  + New trees are dependent upon previous trees
+  + Each tree has minimum depth
+  + Each tree in the ensemble contributes unequally to the final model
+* Boosting can over-fit because the learner optimizes the gradient, and each learner is greedily selected
+  + Regularization procedures can limit over-fitting as another tuning parameter
+
+## Cubist
+To be completed
+
+# Computing
+To be completed
+
+
