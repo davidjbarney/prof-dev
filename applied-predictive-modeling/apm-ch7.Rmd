@@ -1,0 +1,62 @@
+---
+title: "Nonlinear Regression Models"
+author: "David J. Barney"
+date: "1/9/2020"
+output: html_document
+---
+
+# Neural Networks
+* Response variable is modeled by an intermediary set of unobserved variables (*hidden units*)
+  + Unlike PLS models, hidden units are not estimated hierarchically
+  + Each hidden unit is a linear combination of predictor variables, usually transformed by a nonlinear function (e.g. sigmoid/logit)
+  + Coefficients in each unit are not very interpretable because there are no constraints that define the linear combinations comprising each unit
+  + Hidden units are connected to the outcome via a linear combination
+* Parameters are optimized to minimize the MSE
+  + But because there are no constraints on the parameteriation of hidden units, this is mathematically complex
+  + Parameters are generally initialized to randomized values, and then optimized through another specialized algorithm (e.g. *back-propogation*)
+  + Solution is not always *global*, but often *local*
+* Tendency to over-fit; methods to address this:
+  + *Early stopping* halts optimization when error rates increase
+  + *Weight decay* adds penalization similar to ridge regression
+  + *Model averaging* combines parameters from various initializations to avoid locally-optimized solutions
+  
+# Multivariate Adaptive Regression Splines (MARS)
+* A *piecewise linear model* that splits each predictor into two, then models linear relationships in each grouping
+  + "Left-hand" feature has values of zero greater than the cut point
+  + "Right-hand" feature is zero less than the cut point
+* Cut points (hinge functions) determined algorithmically: 
+  + Evaluate each observation for each predictor as a cut point
+  + Fit a linear model with the candidate features
+  + Calculate model error
+  + Repeat this process for each subsequent set of features
+  + Sequentially prune individual features that do not contribute significantly to the model
+* *Second-degree* MARS models conduct an additional round of searches for cut-points after the first procedure is completed
+  + Second-degree features may be pruned
+  + Predictions can be unstable
+* Two primary tuning parameters:
+  + Degree of features that are added to the model
+  + Number of retained terms
+* Some advantages:
+  + Effectively conducts feature selection with a direct connection to functional performance
+  + Highly interpretable, as the features correspond with identifiable predictors
+  + Requires very little pre-processing of data
+
+# Support Vector Machines (SVM)
+* Fits a hyperplane that has the largest distance from the nearest data points (e.g. find the best margin through the data)
+* Seeks to minimize the effect of outliers on the regression equation
+* Loss function: Given a threshold $\epsilon$, data points with residuals within the trehsold do not contribute to the model fit, while data points with an absolute difference greater than the threshold contribute a linear-scale amount
+  + Because squared residuals are not used, large outliers have a smaller effect on the model fit
+  + Samples that the model fits well have *no* effect on the regression equation
+  + Only a subset of the training data are needed for prediction due to the $\epsilon$ threshold
+
+# *K*-Nearest Neighbors (*K*NN)
+* Predicts a new sample using the *K*-closest sample from the training set
+  + Cannot be summarized by a model equation, as this is an *unsupervised* approach; rather, predictions are made solely from the training data
+  + To predict a new sample for regression, *K*NN identifies that samples *K*NNs in the predictor space; the predicted response for the new sample is the mean (or median, etc.) of the *K* neighbors' responses
+* User defines the metric for measuring distance between samples, with most common being Euclidean (the straight-line distance between two samples)
+  + Scale of predictors has a substantial impact on distances measured; large scales will have a disproportionately large impact on predictions
+  + Cannot utilize samples with missing data (imputation required)
+* *K* can be tuned through resampling to optimize RMSE
+
+# Computing
+To be completed

@@ -1,5 +1,5 @@
 ---
-title: "Linear Regression and Its Cousins"
+title: "Linear Regression and its Cousins"
 author: "David J. Barney"
 date: "1/7/2020"
 output: html_document
