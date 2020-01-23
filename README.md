@@ -3,5 +3,10 @@ This repository contains notes, code, etc. for professional development in data 
 
 # Subfolder Contents
 Materials are organized into subfolders as follows:
-* `applied-predictive-modeling`: Notes from [*Applied Predictive Modeling*](https://github.com/topepo/AppliedPredictiveModeling)
-* `python-primer`: Notes from [*A Whirlwind Tour of Python*](https://github.com/jakevdp/WhirlwindTourOfPython) and [*Python Data Science Handbook*](https://github.com/jakevdp/PythonDataScienceHandbook)
+* `stat-learning`: Notes on statistical learning theory, with an emphasis on practical implications. Resources drawn from include:
+	* [*Applied Predictive Modeling*](https://github.com/topepo/AppliedPredictiveModeling)
+	* **On Deck**: [*Introduction to Statistical Learning with Applications in R*](http://faculty.marshall.usc.edu/gareth-james/ISL/)
+* `python-primer`: Notes on Python fundamentals, with an emphasis on equivalents in R. Resources drawn from include:
+	* [*A Whirlwind Tour of Python*](https://github.com/jakevdp/WhirlwindTourOfPython)
+	* [*Python Data Science Handbook*](https://github.com/jakevdp/PythonDataScienceHandbook)
+	* [*Think Python: How to Think Like a Computer Scientist*](https://www.greenteapress.com/thinkpython/thinkpython.html)
