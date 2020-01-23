@@ -10,3 +10,4 @@ Materials are organized into subfolders as follows:
 	* [*A Whirlwind Tour of Python*](https://github.com/jakevdp/WhirlwindTourOfPython)
 	* [*Python Data Science Handbook*](https://github.com/jakevdp/PythonDataScienceHandbook)
 	* [*Think Python: How to Think Like a Computer Scientist*](https://www.greenteapress.com/thinkpython/thinkpython.html)
+* `r-survey-cheat-sheet`: Reference document for working with survey data in R. Content adapted from UMass POLISCI 797SR graduate seminar circa 2016.
