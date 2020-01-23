@@ -1,18 +1,12 @@
 ---
 title: "R Survey Cheat Sheet"
-author: "David J. Barney^[davidjbarney@gmail.com]"
+author: "David J. Barney"
 date: "1/26/2019"
 output:
   pdf_document: default
-  html_document: default
 ---
-
-
 # Reading & Exploring Data
-
-
 To read in your data:
-
 ```{r eval=FALSE}
 # Comma delimited format
 dat <- read.csv("~/your/file/path")
@@ -24,7 +18,6 @@ dat <- read_dta("~/your/file/path")
 ```
 
 To view observations or summaries of a variable:
-
 ```{r eval=FALSE}
 # Print the top few observations of a variable
 head(dataframe$vector)
@@ -51,17 +44,16 @@ attributes(dataframe)
 attributes(dataframe$vector) 
 ```
 
-All of the examples in this guide will use the [2016 CCES](https://doi.org/10.7910/DVN/GDF6Z0) loaded in `.dta` format. To replicate, 
+All of the examples in this guide will use the [2016 CCES](https://doi.org/10.7910/DVN/GDF6Z0) loaded in `.dta` format. To replicate, simply update the relative filepath below to the location of your local version of the dataset.
 
 ```{r}
 library(haven)
-cces16 <- read_dta("../../Data/2016 CCES/CCES16_Common_OUTPUT_Feb2018_VV.dta")
+cces16 <- read_dta("../../../Data/2016 CCES/CCES16_Common_OUTPUT_Feb2018_VV.dta")
 ```
 
 # Manipulating Data
 ## Recoding Data
 To recode values in base R:
-
 ```{r}
 #Create a new vector to work with
 cces16$ban_ar <- cces16$CC16_330d
@@ -90,7 +82,6 @@ cces16$pid[cces16$pid==6] <- 3
 cces16$pid[cces16$pid==7] <- 3
 ```
 
-
 To cut a continuous variable into an ordinal one in base R:
 ```{r}
 # Create the age variable
@@ -115,18 +106,14 @@ cces16$pid_reverse <- factor(cces16$pid_reverse,
                              "Democrat"))
 ```
 
-
 ## Merging Data
-To merge data that have one common vector with the same name:
-
-
+Again, to replicate, update the filepath below to point to your local copy of the supplementary dataset for merging. To merge data that have one common vector with the same name:
 ```{r}
 #Load the supplemental data
-cces16s <-  read.csv("../../Data/2016 CCES Supplementary/CC16_Candidates_By_Race.csv")
+cces16s <-  read.csv("../../../Data/2016 CCES Supplementary/CC16_Candidates_By_Race.csv")
 #Merge the primary and supplemental data by respondent state
 cces16c <- merge(cces16, cces16s)
 ```
-
 
 To merge data that have a common vector with different names:
 ```{r}
@@ -137,11 +124,13 @@ cces16c <- merge(cces16, cces16s,
                  by.y = "inputstate")
 ```
 
+```{r include=FALSE}
+rm(cces16c)
+```
 
 #Descriptive Statistics
 ## Summary Statistics
 To summarize a variable:
-
 ```{r}
 summary(cces16$age)
 ```
@@ -171,8 +160,8 @@ range(cces16$age)
 #Quantiles
 quantile(cces16$age)
 ```
-## Tabulations & Cross Tabulations
 
+## Tabulations & Cross Tabulations
 To tabulate a variable:
 ```{r}
 # Tabulate PID
@@ -186,10 +175,12 @@ pidxage <- table(cces16$pid_reverse, cces16$agecats)
 pidxage
 prop.table(pidxage,2)
 ```
+```{r include=FALSE}
+rm(pidxage)
+```
 
 ## Summary Statistics by Group
 To summarize variables by group in base R:
-
 ```{r}
 #Create a dataframe of the variables of interest
 subgroup_vars <- c("age","pid")
@@ -199,7 +190,6 @@ aggregate(subgroup_df$age, list(subgroup_df$pid), mean)
 ```
 
 To summarize variables by group with `dplyr`:
-
 ```{r}
 library(dplyr)
 subgroup_means <- subgroup_df %>%
@@ -209,7 +199,6 @@ subgroup_means
 ```
 
 To visualize subgroup means with `ggplot`:
-
 ```{r}
 library(ggplot2)
 pid_labels <- c("Democrat", "Independent", "Republican")
@@ -222,17 +211,18 @@ sg_bp <- ggplot(subgroup_means, aes(y=mean, x=pid)) +
 sg_bp <- sg_bp + coord_cartesian(ylim=c(45,55))
 sg_bp
 ```
-
+```{r include=FALSE}
+rm(sg_bp, subgroup_vars, subgroup_matrix, subgroup_df, subgroup_means)
+```
 
 ## Distributions
 To plot a histogram of a variable's distribution using `ggplot2`:
-
 ```{r}
 #Histogram for age
 library(ggplot2)
 age_matrix <- as.matrix(cces16$age)
 age_df <- as.data.frame(age_matrix)
-ggplot(data = age_df, aes(x=age_df)) +
+ggplot(data = age_df, aes(x=age_df$V1)) +
   geom_histogram(binwidth = 1) + 
   xlab("Age of Respondent") +
   ylab("Frequency")
@@ -240,16 +230,14 @@ ggplot(data = age_df, aes(x=age_df)) +
 
 ```{r}
 #Density plot
-ggplot(data = age_df, aes(x=age_df)) +
+ggplot(data = age_df, aes(x=age_df$V1)) +
   geom_density(fill="lightblue") +
   xlab("Age of Respondent") +
   ylab("Density")
 ```
 
-
 # Modeling
 ## OLS Regression
-
 ```{r}
 # Prepare Obama approval as the DV
 cces16$oa <- cces16$CC16_320a
@@ -261,6 +249,9 @@ olsfit <- lm(oa ~ pid + gender + age,
              data = cces16)
 # Print the model summary
 summary(olsfit)
+```
+```{r include=FALSE}
+rm(olsfit)
 ```
 
 ## Logistic Regression
@@ -277,9 +268,11 @@ lfit <- glm(ban_ar ~ pid + agecats + gender,
 # Print the model summary
 summary(lfit)
 ```
+```{r include=FALSE}
+rm(lfit)
+```
 
 ## Ordinal Logistic Regression
-
 ```{r}
 ## Ordinal Logistic Regression
 # Convert Obama approval to a factor
@@ -290,6 +283,10 @@ olfit <- polr(oaf ~ pid + gender + age,
               data = cces16, Hess = TRUE)
 # Print the model summary
 summary(olfit)
+```
+
+```{r include=FALSE}
+rm(olfit)
 ```
 
 ## Multinomial Logistic Regression
@@ -314,9 +311,12 @@ mlfit <- multinom(vc ~ pid + agecats + gender,
 # Print the model summary
 summary(mlfit)
 ```
+```{r include=FALSE}
+rm(mlfit)
+```
 
-# `survey` Package
 
+# Weighting
 All examples in this section require the `survey` package:
 ```{r}
 library(survey)
@@ -334,6 +334,9 @@ prop.table(table(cces16$pid_reverse))
 pidxage <- table(cces16$pid_reverse, cces16$agecats)
 pidxage
 prop.table(pidxage,2)
+```
+```{r include=FALSE}
+rm(pidxage)
 ```
 
 ```{r}
@@ -360,6 +363,9 @@ fit <- glm(ban_ar ~ pid_reverse + agecats + gender,
            data=cces16, family = binomial())
 summary(fit)
 ```
+```{r include=FALSE}
+rm(fit)
+```
 
 ```{r}
 ## WITH WEIGHTING
@@ -367,17 +373,83 @@ wfit <- svyglm(ban_ar ~ pid_reverse + agecats + gender,
                design=svy.cces16, family = binomial())
 summary(wfit)
 ```
+```{r include=FALSE}
+rm(wfit)
+```
 
+## Creating Post-Stratification Weights
+To start, we need to create dummies for the variables to use in the weighting process.
+```{r Dummy out vars for weighting}
+cces16$female <- NA
+cces16$female[cces16$gender==2] = 1
+cces16$female[cces16$gender!=2] = 0
 
-# Creating Post-Stratification Weights
-In progress.
+cces16$white <- NA
+cces16$white[cces16$race==1] = 1
+cces16$white[cces16$race!=1] = 0
 
+cces16$black <- NA
+cces16$black[cces16$race==2] = 1
+cces16$black[cces16$race!=2] = 0
 
+cces16$hispanic <- NA
+cces16$hispanic[cces16$race==3] = 1
+cces16$hispanic[cces16$race!=3] = 0
 
+cces16$age18_29 <- NA
+cces16$age18_29[cces16$age >= 18 & cces16$age <= 29] = 1
+cces16$age18_29[cces16$age < 18 | cces16$age > 29] = 0
 
+cces16$age65_over <- NA
+cces16$age65_over[cces16$age >= 65] = 1
+cces16$age65_over[cces16$age < 65] = 0
+```
 
+Next, we'll initialize an unweighted survey design object that will be raked over.
+```{r}
+svy_unweighted <- svydesign(ids = ~1, data = cces16)
+```
 
+Now we define our target marginal distributions of variables for weighting. The margins are defined as a numeric vector of length 2 representing the proportion of zeroes to ones in the population. Note that these margins are arbitrary proportions from another tutorial dataset; you will want to use census data or other population-level data sources to define the margins.
+```{r}
+female_margins <- data.frame(female = c("0", "1"),
+                          Freq = nrow(cces16) * c(0.47, 0.53))
+white_margins <- data.frame(white = c("0", "1"),
+                            Freq = nrow(cces16) * c(0.12, 0.88))
+black_margins <- data.frame(black = c("0", "1"),
+                            Freq = nrow(cces16) * c(0.96, 0.04))
+hispanic_margins <- data.frame(hispanic = c("0", "1"),
+                               Freq = nrow(cces16) * c(0.95, 0.05))
+age18_margins <- data.frame(age18_29 = c("0", "1"),
+                            Freq = nrow(cces16) * c(0.93, 0.07))
+age65_margins <- data.frame(age65_over = c("0", "1"),
+                            Freq = nrow(cces16) * c(0.70, 0.30))
+```
 
+Now we can rake a set of post-stratification weights by passing the sample margins as a list of model formulae, and the population margins as a list of dataframes. 
+```{r}
+svy_weighted <- rake(design = svy_unweighted,
+                     sample.margins = list(~female, ~white, ~black, ~hispanic, ~age18_29, ~age65_over),
+                     population.margins = list(female_margins, white_margins, black_margins, 
+                                          hispanic_margins, age18_margins, age65_margins),
+                     control = list(maxit = 25))
+```
+
+To briefly examine the weights we estimated:
+```{r}
+summary(weights(svy_weighted))
+```
+
+If we estimate weights that are too extreme, we can trim them as follows:
+```{r}
+svy_weighted <- trimWeights(svy_weighted, lower=.4, upper=8, strict=TRUE)
+```
+
+# Item Scaling
+To be completed: alpha index, factor analysis, IRT models
+
+# Matching & Balancing
+To be completed: propensity score matching, coarsened exact matching, entropy balancing
 
 
 
